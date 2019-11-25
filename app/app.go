@@ -2,6 +2,7 @@ package app
 
 import (
 	"encoding/json"
+	"github.com/chamilto/dummy/app/handlers/api"
 	"github.com/go-redis/redis/v7"
 	"github.com/gorilla/mux"
 	"net/http"
@@ -16,10 +17,7 @@ type App struct {
 
 // register all dummy config api handlers
 func (a *App) registerHandlers() {
-	a.Router.HandleFunc("/api/health", func(w http.ResponseWriter, r *http.Request) {
-		// an example API handler
-		json.NewEncoder(w).Encode(map[string]bool{"ok": true})
-	})
+	a.Router.HandleFunc("/api/health", a.handleRequest(api.healthCheckHandler))
 
 }
 
@@ -51,4 +49,12 @@ func (a *App) Initialize() {
 		ReadTimeout:  15 * time.Second,
 	}
 
+}
+
+type RequestHandlerFunction func(db *redis.Client, w http.ResponseWriter, r *http.Request)
+
+func (a *App) handleRequest(handler RequestHandlerFunction) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		handler(a.DB, w, r)
+	}
 }
