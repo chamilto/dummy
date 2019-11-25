@@ -1,8 +1,7 @@
 package app
 
 import (
-	"encoding/json"
-	"github.com/chamilto/dummy/app/handlers/api"
+	"github.com/chamilto/dummy/app/handlers"
 	"github.com/go-redis/redis/v7"
 	"github.com/gorilla/mux"
 	"net/http"
@@ -17,7 +16,11 @@ type App struct {
 
 // register all dummy config api handlers
 func (a *App) registerHandlers() {
-	a.Router.HandleFunc("/api/health", a.handleRequest(api.healthCheckHandler))
+	a.Router.HandleFunc("/dummy-config/health", a.handleRequest(handlers.HealthCheck))
+	a.Router.HandleFunc(
+		"/dummy-config/endpoints",
+		a.handleRequest(handlers.CreateDummyEndpoint),
+	).Methods("POST")
 
 }
 
@@ -55,6 +58,7 @@ type RequestHandlerFunction func(db *redis.Client, w http.ResponseWriter, r *htt
 
 func (a *App) handleRequest(handler RequestHandlerFunction) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
 		handler(a.DB, w, r)
 	}
 }
