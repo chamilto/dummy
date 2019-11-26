@@ -19,19 +19,19 @@ func (a *App) registerHandlers() {
 	a.Router.HandleFunc("/dummy-config/health", a.handleRequest(handlers.HealthCheck))
 	a.Router.HandleFunc(
 		"/dummy-config/endpoints",
-		a.handleRequest(handlers.CreateDummyEndpoint),
+		a.handleConfigRequest(handlers.CreateDummyEndpoint),
 	).Methods("POST")
 	a.Router.HandleFunc(
 		"/dummy-config/endpoints",
-		a.handleRequest(handlers.GetAllDummyEndpoints),
+		a.handleConfigRequest(handlers.GetAllDummyEndpoints),
 	).Methods("GET")
 	a.Router.HandleFunc(
 		"/dummy-config/endpoints/{name}",
-		a.handleRequest(handlers.GetDetailDummyEndpoint),
+		a.handleConfigRequest(handlers.GetDetailDummyEndpoint),
 	).Methods("GET")
 	a.Router.HandleFunc(
 		"/dummy-config/endpoints/{name}",
-		a.handleRequest(handlers.UpdateDummyEndpoint),
+		a.handleConfigRequest(handlers.UpdateDummyEndpoint),
 	).Methods("PUT")
 
 	// Hijack the 404 handler to register our Dummy Endpoint matcher
@@ -73,6 +73,13 @@ type RequestHandlerFunction func(db *redis.Client, w http.ResponseWriter, r *htt
 
 func (a *App) handleRequest(handler RequestHandlerFunction) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		handler(a.DB, w, r)
+	}
+}
+
+func (a *App) handleConfigRequest(handler RequestHandlerFunction) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
 		handler(a.DB, w, r)
 	}
 }

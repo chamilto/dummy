@@ -24,7 +24,6 @@ func WriteError(w http.ResponseWriter, errType string, msg string, status int) {
 }
 
 func CreateDummyEndpoint(db *redis.Client, w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
 	b, err := ioutil.ReadAll(r.Body)
 	defer r.Body.Close()
 
@@ -71,7 +70,6 @@ func CreateDummyEndpoint(db *redis.Client, w http.ResponseWriter, r *http.Reques
 }
 
 func GetAllDummyEndpoints(db *redis.Client, w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
 	endpoints := dummyendpoint.GetAllDummyEndpoints(db)
 
 	ret := []dummyendpoint.DummyEndpoint{}
@@ -86,7 +84,6 @@ func GetAllDummyEndpoints(db *redis.Client, w http.ResponseWriter, r *http.Reque
 }
 
 func GetDetailDummyEndpoint(db *redis.Client, w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
 	name := mux.Vars(r)["name"]
 	de := dummyendpoint.LoadFromName(db, name)
 
@@ -102,7 +99,6 @@ func GetDetailDummyEndpoint(db *redis.Client, w http.ResponseWriter, r *http.Req
 }
 
 func UpdateDummyEndpoint(db *redis.Client, w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
 	b, err := ioutil.ReadAll(r.Body)
 	defer r.Body.Close()
 
@@ -190,7 +186,6 @@ func Dummy(db *redis.Client, w http.ResponseWriter, r *http.Request) {
 }
 
 func HealthCheck(db *redis.Client, w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
 	_, err := db.Ping().Result()
 
 	ok := true
