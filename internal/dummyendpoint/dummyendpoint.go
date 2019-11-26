@@ -3,11 +3,12 @@ package dummyendpoint
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/go-redis/redis/v7"
-	"github.com/xeipuuv/gojsonschema"
 	"net/http"
 	"regexp"
 	"strings"
+
+	"github.com/go-redis/redis/v7"
+	"github.com/xeipuuv/gojsonschema"
 )
 
 const (

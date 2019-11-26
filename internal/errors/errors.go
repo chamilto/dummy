@@ -2,8 +2,9 @@ package errors
 
 import (
 	"encoding/json"
-	"github.com/sirupsen/logrus"
 	"net/http"
+
+	"github.com/sirupsen/logrus"
 )
 
 type ErrorMessage struct {

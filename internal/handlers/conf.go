@@ -1,14 +1,16 @@
+// Dummy endpoint configuration handlers
 package handlers
 
 import (
 	"encoding/json"
+	"io/ioutil"
+	"net/http"
+	"strings"
+
 	"github.com/chamilto/dummy/internal/dummyendpoint"
 	"github.com/chamilto/dummy/internal/errors"
 	"github.com/go-redis/redis/v7"
 	"github.com/gorilla/mux"
-	"io/ioutil"
-	"net/http"
-	"strings"
 )
 
 func CreateDummyEndpoint(db *redis.Client, w http.ResponseWriter, r *http.Request) {

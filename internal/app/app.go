@@ -1,12 +1,14 @@
 package app
 
 import (
-	"github.com/chamilto/dummy/internal/handlers"
+	"net/http"
+	"time"
+
 	"github.com/go-redis/redis/v7"
 	"github.com/gorilla/mux"
 	"github.com/sirupsen/logrus"
-	"net/http"
-	"time"
+
+	"github.com/chamilto/dummy/internal/handlers"
 )
 
 type App struct {

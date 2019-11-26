@@ -2,8 +2,9 @@ package handlers
 
 import (
 	"encoding/json"
-	"github.com/go-redis/redis/v7"
 	"net/http"
+
+	"github.com/go-redis/redis/v7"
 )
 
 func HealthCheck(db *redis.Client, w http.ResponseWriter, r *http.Request) {

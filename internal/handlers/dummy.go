@@ -1,10 +1,12 @@
 package handlers
 
 import (
+	"net/http"
+
+	"github.com/go-redis/redis/v7"
+
 	"github.com/chamilto/dummy/internal/dummyendpoint"
 	"github.com/chamilto/dummy/internal/errors"
-	"github.com/go-redis/redis/v7"
-	"net/http"
 )
 
 // Match the incoming request's url path + Method to a dummy endpoint
