@@ -14,13 +14,16 @@ type App struct {
 	Router *mux.Router
 }
 
-// register all dummy config api handlers
 func (a *App) registerHandlers() {
+	// dummy config api
 	a.Router.HandleFunc("/dummy-config/health", a.handleRequest(handlers.HealthCheck))
 	a.Router.HandleFunc(
 		"/dummy-config/endpoints",
 		a.handleRequest(handlers.CreateDummyEndpoint),
 	).Methods("POST")
+
+	// Hijack the 404 handler to register our Dummy Endpoint matcher
+	a.Router.NotFoundHandler = a.handleRequest(handlers.Dummy)
 
 }
 

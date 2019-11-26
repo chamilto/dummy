@@ -20,7 +20,6 @@ func WriteError(w http.ResponseWriter, errType string, msg string, status int) {
 	errB, _ := json.Marshal(errMsg)
 	w.WriteHeader(status)
 	w.Write(errB)
-
 }
 
 func CreateDummyEndpoint(db *redis.Client, w http.ResponseWriter, r *http.Request) {
@@ -56,6 +55,7 @@ func CreateDummyEndpoint(db *redis.Client, w http.ResponseWriter, r *http.Reques
 
 	if !unq {
 		WriteError(w, "ConflictError", unqErrMsg, http.StatusConflict)
+		return
 	}
 
 	saveErr := newEndpoint.Save(db)
@@ -65,6 +65,25 @@ func CreateDummyEndpoint(db *redis.Client, w http.ResponseWriter, r *http.Reques
 		http.Error(w, err.Error(), 500)
 		return
 	}
+
+}
+
+// Match the incoming request's url path + Method to a dummy endpoint
+// Use the dummy endpoint struct data to build our custom response
+func Dummy(db *redis.Client, w http.ResponseWriter, r *http.Request) {
+	de := dummyendpoint.MatchEndpoint(db, r)
+
+	if de == nil {
+		WriteError(
+			w,
+			"NotFoundError", "URL path + method do not match any existing dummy endpoints.",
+			http.StatusNotFound,
+		)
+		return
+
+	}
+
+	json.NewEncoder(w).Encode(map[string]string{"testing body": de.Body})
 
 }
 

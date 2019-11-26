@@ -5,10 +5,16 @@ import (
 	"fmt"
 	"github.com/go-redis/redis/v7"
 	"github.com/xeipuuv/gojsonschema"
+	"net/http"
+	"regexp"
 	"strings"
 )
 
-const REDIS_KEY_PREFIX = "DUMMY"
+const (
+	REDIS_KEY_PREFIX = "dummy"
+	PATTERNS_HMAP    = "patterns"
+	NAME_HMAP        = "names"
+)
 
 const dummyEndpointSchema = `
 {
@@ -72,42 +78,32 @@ type DummyEndpoint struct {
 func (de *DummyEndpoint) Save(db *redis.Client) error {
 	// Store name of route keyed by path pattern + method
 	fmt.Println(de)
-	keyPattern := buildKey([]string{de.PathPattern, de.HttpMethod})
-	fmt.Println(keyPattern)
-	err := db.Set(keyPattern, de.Name, 0).Err()
+	fieldPattern := strings.Join([]string{de.PathPattern, de.HttpMethod}, ":")
+	err := db.HSet(buildKey([]string{PATTERNS_HMAP}), fieldPattern, de.Name).Err()
 
 	if err != nil {
 		return err
 	}
 
 	// Store dummy endpoint object by name
-	keyName := buildKey([]string{de.Name})
 	marshalled, _ := json.Marshal(de)
-	err2 := db.Set(keyName, marshalled, 0).Err()
+	err2 := db.HSet(buildKey([]string{NAME_HMAP}), de.Name, marshalled).Err()
 
 	return err2
 }
 
 func (de *DummyEndpoint) PathPatternExists(db *redis.Client) bool {
-	pathPatternExistsKey := buildKey([]string{de.PathPattern, de.HttpMethod})
-	pathPatternExists, _ := db.Exists(pathPatternExistsKey).Result()
+	hm := buildKey([]string{PATTERNS_HMAP})
+	exists, _ := db.HExists(hm, strings.Join([]string{de.PathPattern, de.HttpMethod}, ":")).Result()
 
-	if pathPatternExists == 1 {
-		return true
-	}
-
-	return false
-
+	return exists
 }
 
 func (de *DummyEndpoint) NameExists(db *redis.Client) bool {
-	nameExists, _ := db.Exists(buildKey([]string{de.Name})).Result()
+	hm := buildKey([]string{NAME_HMAP})
+	exists, _ := db.HExists(hm, de.Name).Result()
 
-	if nameExists == 1 {
-		return true
-	}
-
-	return false
+	return exists
 
 }
 
@@ -125,9 +121,27 @@ func (de *DummyEndpoint) IsUnique(db *redis.Client) (bool, string) {
 
 }
 
-func MatchEndpoint(pathPattern string, db *redis.Client) (*DummyEndpoint, error) {
-	// get all patterns
-	// if pattern in patterns
-	// if re.search match, return
-	return &DummyEndpoint{}, nil
+func LoadFromName(db *redis.Client, name string) *DummyEndpoint {
+	hm := buildKey([]string{NAME_HMAP})
+	v, _ := db.HGet(hm, name).Result()
+	de := &DummyEndpoint{}
+	json.Unmarshal([]byte(v), de)
+
+	return de
+}
+
+func MatchEndpoint(db *redis.Client, r *http.Request) *DummyEndpoint {
+	hm := buildKey([]string{PATTERNS_HMAP})
+
+	requestPattern := strings.Join([]string{r.URL.Path, r.Method}, ":")
+	allPatterns, _ := db.HGetAll(hm).Result()
+
+	for pattern, name := range allPatterns {
+		if regexp.MustCompile(pattern).MatchString(requestPattern) {
+			return LoadFromName(db, name)
+		}
+
+	}
+
+	return nil
 }
