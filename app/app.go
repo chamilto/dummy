@@ -4,6 +4,7 @@ import (
 	"github.com/chamilto/dummy/app/handlers"
 	"github.com/go-redis/redis/v7"
 	"github.com/gorilla/mux"
+	"github.com/sirupsen/logrus"
 	"net/http"
 	"time"
 )
@@ -49,7 +50,7 @@ func getRedisClient() *redis.Client {
 	_, err := redisClient.Ping().Result()
 
 	if err != nil {
-		panic(err)
+		logrus.Fatal("unable to connect to redis.")
 	}
 
 	return redisClient

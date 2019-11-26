@@ -133,32 +133,32 @@ func (de *DummyEndpoint) setResponseHeaders(w http.ResponseWriter) {
 	}
 }
 
-func LoadFromName(db *redis.Client, name string) *DummyEndpoint {
+func LoadFromName(db *redis.Client, name string) (*DummyEndpoint, error) {
 	hm := buildKey([]string{NAME_HMAP})
-	v, _ := db.HGet(hm, name).Result()
+	v, err := db.HGet(hm, name).Result()
 
 	if v == "" {
-		return nil
+		return nil, err
 	}
 
 	de := &DummyEndpoint{}
 	json.Unmarshal([]byte(v), de)
 
-	return de
+	return de, err
 }
 
-func GetAllDummyEndpoints(db *redis.Client) map[string]string {
+func GetAllDummyEndpoints(db *redis.Client) (map[string]string, error) {
 	hm := buildKey([]string{NAME_HMAP})
-	allEndpoints, _ := db.HGetAll(hm).Result()
+	allEndpoints, err := db.HGetAll(hm).Result()
 
-	return allEndpoints
+	return allEndpoints, err
 }
 
-func MatchEndpoint(db *redis.Client, r *http.Request) *DummyEndpoint {
+func MatchEndpoint(db *redis.Client, r *http.Request) (*DummyEndpoint, error) {
 	hm := buildKey([]string{PATTERNS_HMAP})
 
 	requestPattern := strings.Join([]string{r.URL.Path, r.Method}, ":")
-	allPatterns, _ := db.HGetAll(hm).Result()
+	allPatterns, err := db.HGetAll(hm).Result()
 
 	for pattern, name := range allPatterns {
 		if regexp.MustCompile(pattern).MatchString(requestPattern) {
@@ -167,5 +167,5 @@ func MatchEndpoint(db *redis.Client, r *http.Request) *DummyEndpoint {
 
 	}
 
-	return nil
+	return nil, err
 }

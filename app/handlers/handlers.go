@@ -2,10 +2,10 @@ package handlers
 
 import (
 	"encoding/json"
-	"fmt"
 	"github.com/chamilto/dummy/app/dummyendpoint"
 	"github.com/go-redis/redis/v7"
 	"github.com/gorilla/mux"
+	"github.com/sirupsen/logrus"
 	"io/ioutil"
 	"net/http"
 	"strings"
@@ -23,13 +23,18 @@ func WriteError(w http.ResponseWriter, errType string, msg string, status int) {
 	w.Write(errB)
 }
 
+func WriteServerError(w http.ResponseWriter, msg string, err error) {
+	logrus.Warn(msg)
+	http.Error(w, err.Error(), 500)
+
+}
+
 func CreateDummyEndpoint(db *redis.Client, w http.ResponseWriter, r *http.Request) {
 	b, err := ioutil.ReadAll(r.Body)
 	defer r.Body.Close()
 
 	if err != nil {
-		// TODO: logging
-		http.Error(w, err.Error(), 500)
+		WriteServerError(w, "unable to parse request body.", err)
 		return
 	}
 
@@ -47,7 +52,7 @@ func CreateDummyEndpoint(db *redis.Client, w http.ResponseWriter, r *http.Reques
 	err = json.Unmarshal(b, &newEndpoint)
 
 	if err != nil {
-		http.Error(w, err.Error(), 500)
+		WriteServerError(w, "unable to unmarshal request body to json", err)
 		return
 	}
 
@@ -62,15 +67,19 @@ func CreateDummyEndpoint(db *redis.Client, w http.ResponseWriter, r *http.Reques
 	saveErr := newEndpoint.Save(db)
 
 	if saveErr != nil {
-		fmt.Println("Error saving new endpoint to DB.")
-		http.Error(w, err.Error(), 500)
+		WriteServerError(w, "error saving new endpoint to DB", err)
 		return
 	}
 
 }
 
 func GetAllDummyEndpoints(db *redis.Client, w http.ResponseWriter, r *http.Request) {
-	endpoints := dummyendpoint.GetAllDummyEndpoints(db)
+	endpoints, err := dummyendpoint.GetAllDummyEndpoints(db)
+
+	if err != nil {
+		WriteServerError(w, "unable to fetch dummy endpoints from db", err)
+		return
+	}
 
 	ret := []dummyendpoint.DummyEndpoint{}
 
@@ -85,7 +94,13 @@ func GetAllDummyEndpoints(db *redis.Client, w http.ResponseWriter, r *http.Reque
 
 func GetDetailDummyEndpoint(db *redis.Client, w http.ResponseWriter, r *http.Request) {
 	name := mux.Vars(r)["name"]
-	de := dummyendpoint.LoadFromName(db, name)
+	de, err := dummyendpoint.LoadFromName(db, name)
+
+	if err != nil {
+		WriteServerError(w, "unable to fetch dummy endpoint from db", err)
+		return
+
+	}
 
 	if de == nil {
 		WriteError(
@@ -102,6 +117,11 @@ func UpdateDummyEndpoint(db *redis.Client, w http.ResponseWriter, r *http.Reques
 	b, err := ioutil.ReadAll(r.Body)
 	defer r.Body.Close()
 
+	if err != nil {
+		WriteServerError(w, "unable to parse request body", err)
+		return
+	}
+
 	valid, validationErrs := dummyendpoint.Validate(b, dummyendpoint.DummyEndpointSchemaLoader)
 
 	if !valid {
@@ -111,19 +131,17 @@ func UpdateDummyEndpoint(db *redis.Client, w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	if err != nil {
-		// TODO: logging
-		http.Error(w, err.Error(), 500)
-		return
-	}
 	updatedEndpoint := dummyendpoint.DummyEndpoint{}
-	existingEndpoint := dummyendpoint.LoadFromName(db, mux.Vars(r)["name"])
+
+	var existingEndpoint *dummyendpoint.DummyEndpoint
+	existingEndpoint, err = dummyendpoint.LoadFromName(db, mux.Vars(r)["name"])
+	WriteServerError(w, "unable to load dummy endpoint", err)
 
 	err = json.Unmarshal(b, &updatedEndpoint)
 
 	if err != nil {
-		http.Error(w, err.Error(), 500)
-		return
+		WriteServerError(w, "unable to unmarshal request body to json", err)
+
 	}
 
 	// make sure the name and pattern exist
@@ -158,19 +176,25 @@ func UpdateDummyEndpoint(db *redis.Client, w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	saveErr := updatedEndpoint.Save(db)
+	err = updatedEndpoint.Save(db)
 
-	if saveErr != nil {
-		fmt.Println("Error saving new endpoint to DB.")
-		http.Error(w, err.Error(), 500)
+	if err != nil {
+		WriteServerError(w, "unable to save endpoint", err)
 		return
+
 	}
 }
 
 // Match the incoming request's url path + Method to a dummy endpoint
 // Use the dummy endpoint struct data to build our custom response
 func Dummy(db *redis.Client, w http.ResponseWriter, r *http.Request) {
-	de := dummyendpoint.MatchEndpoint(db, r)
+	de, err := dummyendpoint.MatchEndpoint(db, r)
+
+	if err != nil {
+		WriteServerError(w, "unable to load dummy endpoint", err)
+		return
+
+	}
 
 	if de == nil {
 		WriteError(
