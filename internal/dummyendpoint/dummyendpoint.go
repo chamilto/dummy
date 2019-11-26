@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/go-redis/redis/v7"
 	"github.com/xeipuuv/gojsonschema"
@@ -28,7 +29,8 @@ const dummyEndpointSchema = `
             "body": {"type": "string"},
             "name": {"type": "string"},
             "httpMethod": {"type": "string", "enum": ["GET", "POST", "PUT", "PATCH", "DELETE"]},
-            "headers": {"type": "object"}
+            "headers": {"type": "object"},
+	    "delay": {"type": "integer", "description": "Delay in milliseconds"}
         },
         "required": ["pathPattern", "body", "statusCode", "name", "httpMethod"],
         "additionalProperties": false
@@ -72,6 +74,7 @@ type DummyEndpoint struct {
 	Body        string            `json:"body"`
 	StatusCode  float64           `json:"statusCode"`
 	Headers     map[string]string `json:"headers"`
+	Delay       float64           `json:"delay"`
 }
 
 func (de *DummyEndpoint) Save(db *redis.Client) error {
@@ -126,6 +129,10 @@ func (de *DummyEndpoint) SetResponseData(w http.ResponseWriter) {
 	w.WriteHeader(int(de.StatusCode))
 	w.Write([]byte(de.Body))
 
+}
+
+func (de *DummyEndpoint) RunDelay() {
+	time.Sleep(time.Duration(de.Delay) * time.Millisecond)
 }
 
 func (de *DummyEndpoint) setResponseHeaders(w http.ResponseWriter) {

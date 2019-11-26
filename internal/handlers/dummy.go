@@ -31,4 +31,5 @@ func Dummy(db *redis.Client, w http.ResponseWriter, r *http.Request) {
 	}
 
 	de.SetResponseData(w)
+	de.RunDelay()
 }
