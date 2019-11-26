@@ -29,6 +29,10 @@ func (a *App) registerHandlers() {
 		"/dummy-config/endpoints/{name}",
 		a.handleRequest(handlers.GetDetailDummyEndpoint),
 	).Methods("GET")
+	a.Router.HandleFunc(
+		"/dummy-config/endpoints/{name}",
+		a.handleRequest(handlers.UpdateDummyEndpoint),
+	).Methods("PUT")
 
 	// Hijack the 404 handler to register our Dummy Endpoint matcher
 	a.Router.NotFoundHandler = a.handleRequest(handlers.Dummy)

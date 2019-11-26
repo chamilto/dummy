@@ -101,6 +101,76 @@ func GetDetailDummyEndpoint(db *redis.Client, w http.ResponseWriter, r *http.Req
 	json.NewEncoder(w).Encode(de)
 }
 
+func UpdateDummyEndpoint(db *redis.Client, w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	b, err := ioutil.ReadAll(r.Body)
+	defer r.Body.Close()
+
+	valid, validationErrs := dummyendpoint.Validate(b, dummyendpoint.DummyEndpointSchemaLoader)
+
+	if !valid {
+		// return validation errors to user
+		msg := strings.Join(validationErrs, ",")
+		WriteError(w, "ValidationError", msg, http.StatusBadRequest)
+		return
+	}
+
+	if err != nil {
+		// TODO: logging
+		http.Error(w, err.Error(), 500)
+		return
+	}
+	updatedEndpoint := dummyendpoint.DummyEndpoint{}
+	existingEndpoint := dummyendpoint.LoadFromName(db, mux.Vars(r)["name"])
+
+	err = json.Unmarshal(b, &updatedEndpoint)
+
+	if err != nil {
+		http.Error(w, err.Error(), 500)
+		return
+	}
+
+	// make sure the name and pattern exist
+	unq, _ := updatedEndpoint.IsUnique(db)
+
+	if unq {
+		WriteError(
+			w,
+			"NotFoundError", "Dummy Endpoint not found",
+			http.StatusNotFound,
+		)
+		return
+	}
+
+	// cannot change name
+	if existingEndpoint.Name != updatedEndpoint.Name {
+		WriteError(
+			w,
+			"BadRequestError", "Field name cannot be changed.",
+			http.StatusNotFound,
+		)
+		return
+	}
+
+	// cannot change path pattern
+	if existingEndpoint.PathPattern != updatedEndpoint.PathPattern {
+		WriteError(
+			w,
+			"BadRequestError", "Field pathPattern cannot be changed.",
+			http.StatusNotFound,
+		)
+		return
+	}
+
+	saveErr := updatedEndpoint.Save(db)
+
+	if saveErr != nil {
+		fmt.Println("Error saving new endpoint to DB.")
+		http.Error(w, err.Error(), 500)
+		return
+	}
+}
+
 // Match the incoming request's url path + Method to a dummy endpoint
 // Use the dummy endpoint struct data to build our custom response
 func Dummy(db *redis.Client, w http.ResponseWriter, r *http.Request) {
