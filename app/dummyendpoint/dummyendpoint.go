@@ -41,8 +41,6 @@ func Validate(data []byte, schema gojsonschema.JSONLoader) (bool, []string) {
 	dataDoc := gojsonschema.NewStringLoader(string(data))
 	result, err := gojsonschema.Validate(schema, dataDoc)
 
-	fmt.Println(err)
-
 	if err != nil {
 		return false, nil
 	}
@@ -67,12 +65,12 @@ func buildKey(parts []string) string {
 }
 
 type DummyEndpoint struct {
-	Name        string                 `json:"name"`
-	PathPattern string                 `json:"pathPattern"`
-	HttpMethod  string                 `json:"httpMethod"`
-	Body        string                 `json:"body"`
-	StatusCode  float64                `json:"statusCode"`
-	Headers     map[string]interface{} `json:"headers"`
+	Name        string            `json:"name"`
+	PathPattern string            `json:"pathPattern"`
+	HttpMethod  string            `json:"httpMethod"`
+	Body        string            `json:"body"`
+	StatusCode  float64           `json:"statusCode"`
+	Headers     map[string]string `json:"headers"`
 }
 
 func (de *DummyEndpoint) Save(db *redis.Client) error {
@@ -121,13 +119,39 @@ func (de *DummyEndpoint) IsUnique(db *redis.Client) (bool, string) {
 
 }
 
+// Write the response headers, status code, and body from the DummyEndpoint
+func (de *DummyEndpoint) SetResponseData(w http.ResponseWriter) {
+	de.setResponseHeaders(w)
+	w.WriteHeader(int(de.StatusCode))
+	w.Write([]byte(de.Body))
+
+}
+
+func (de *DummyEndpoint) setResponseHeaders(w http.ResponseWriter) {
+	for k, v := range de.Headers {
+		w.Header().Set(k, v)
+	}
+}
+
 func LoadFromName(db *redis.Client, name string) *DummyEndpoint {
 	hm := buildKey([]string{NAME_HMAP})
 	v, _ := db.HGet(hm, name).Result()
+
+	if v == "" {
+		return nil
+	}
+
 	de := &DummyEndpoint{}
 	json.Unmarshal([]byte(v), de)
 
 	return de
+}
+
+func GetAllDummyEndpoints(db *redis.Client) map[string]string {
+	hm := buildKey([]string{NAME_HMAP})
+	allEndpoints, _ := db.HGetAll(hm).Result()
+
+	return allEndpoints
 }
 
 func MatchEndpoint(db *redis.Client, r *http.Request) *DummyEndpoint {

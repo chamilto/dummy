@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/chamilto/dummy/app/dummyendpoint"
 	"github.com/go-redis/redis/v7"
+	"github.com/gorilla/mux"
 	"io/ioutil"
 	"net/http"
 	"strings"
@@ -23,6 +24,7 @@ func WriteError(w http.ResponseWriter, errType string, msg string, status int) {
 }
 
 func CreateDummyEndpoint(db *redis.Client, w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
 	b, err := ioutil.ReadAll(r.Body)
 	defer r.Body.Close()
 
@@ -68,6 +70,37 @@ func CreateDummyEndpoint(db *redis.Client, w http.ResponseWriter, r *http.Reques
 
 }
 
+func GetAllDummyEndpoints(db *redis.Client, w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	endpoints := dummyendpoint.GetAllDummyEndpoints(db)
+
+	ret := []dummyendpoint.DummyEndpoint{}
+
+	for _, v := range endpoints {
+		e := dummyendpoint.DummyEndpoint{}
+		json.Unmarshal([]byte(v), &e)
+		ret = append(ret, e)
+	}
+
+	json.NewEncoder(w).Encode(ret)
+}
+
+func GetDetailDummyEndpoint(db *redis.Client, w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	name := mux.Vars(r)["name"]
+	de := dummyendpoint.LoadFromName(db, name)
+
+	if de == nil {
+		WriteError(
+			w,
+			"NotFoundError", "Dummy Endpoint not found",
+			http.StatusNotFound,
+		)
+		return
+	}
+	json.NewEncoder(w).Encode(de)
+}
+
 // Match the incoming request's url path + Method to a dummy endpoint
 // Use the dummy endpoint struct data to build our custom response
 func Dummy(db *redis.Client, w http.ResponseWriter, r *http.Request) {
@@ -83,11 +116,11 @@ func Dummy(db *redis.Client, w http.ResponseWriter, r *http.Request) {
 
 	}
 
-	json.NewEncoder(w).Encode(map[string]string{"testing body": de.Body})
-
+	de.SetResponseData(w)
 }
 
 func HealthCheck(db *redis.Client, w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
 	_, err := db.Ping().Result()
 
 	ok := true
