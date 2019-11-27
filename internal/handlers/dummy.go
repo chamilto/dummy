@@ -3,15 +3,14 @@ package handlers
 import (
 	"net/http"
 
-	"github.com/go-redis/redis/v7"
-
+	"github.com/chamilto/dummy/internal/db"
 	"github.com/chamilto/dummy/internal/dummyendpoint"
 	"github.com/chamilto/dummy/internal/errors"
 )
 
 // Match the incoming request's url path + Method to a dummy endpoint
 // Use the dummy endpoint struct data to build our custom response
-func Dummy(db *redis.Client, w http.ResponseWriter, r *http.Request) {
+func Dummy(db *db.DB, w http.ResponseWriter, r *http.Request) {
 	de, err := dummyendpoint.MatchEndpoint(db, r)
 
 	if err != nil {

@@ -8,8 +8,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/go-redis/redis/v7"
 	"github.com/xeipuuv/gojsonschema"
+
+	"github.com/chamilto/dummy/internal/db"
 )
 
 const (
@@ -77,7 +78,7 @@ type DummyEndpoint struct {
 	Delay       float64           `json:"delay"`
 }
 
-func (de *DummyEndpoint) Save(db *redis.Client) error {
+func (de *DummyEndpoint) Save(db *db.DB) error {
 	// Store name of route keyed by path pattern + method
 	fmt.Println(de)
 	fieldPattern := strings.Join([]string{de.PathPattern, de.HttpMethod}, ":")
@@ -94,14 +95,14 @@ func (de *DummyEndpoint) Save(db *redis.Client) error {
 	return err2
 }
 
-func (de *DummyEndpoint) PathPatternExists(db *redis.Client) bool {
+func (de *DummyEndpoint) PathPatternExists(db *db.DB) bool {
 	hm := buildKey([]string{PATTERNS_HMAP})
 	exists, _ := db.HExists(hm, strings.Join([]string{de.PathPattern, de.HttpMethod}, ":")).Result()
 
 	return exists
 }
 
-func (de *DummyEndpoint) NameExists(db *redis.Client) bool {
+func (de *DummyEndpoint) NameExists(db *db.DB) bool {
 	hm := buildKey([]string{NAME_HMAP})
 	exists, _ := db.HExists(hm, de.Name).Result()
 
@@ -109,7 +110,7 @@ func (de *DummyEndpoint) NameExists(db *redis.Client) bool {
 
 }
 
-func (de *DummyEndpoint) IsUnique(db *redis.Client) (bool, string) {
+func (de *DummyEndpoint) IsUnique(db *db.DB) (bool, string) {
 	if de.PathPatternExists(db) {
 		return false, "pathPattern + httpMethod is not unique."
 
@@ -141,7 +142,7 @@ func (de *DummyEndpoint) setResponseHeaders(w http.ResponseWriter) {
 	}
 }
 
-func LoadFromName(db *redis.Client, name string) (*DummyEndpoint, error) {
+func LoadFromName(db *db.DB, name string) (*DummyEndpoint, error) {
 	hm := buildKey([]string{NAME_HMAP})
 	v, err := db.HGet(hm, name).Result()
 
@@ -155,14 +156,14 @@ func LoadFromName(db *redis.Client, name string) (*DummyEndpoint, error) {
 	return de, err
 }
 
-func GetAllDummyEndpoints(db *redis.Client) (map[string]string, error) {
+func GetAllDummyEndpoints(db *db.DB) (map[string]string, error) {
 	hm := buildKey([]string{NAME_HMAP})
 	allEndpoints, err := db.HGetAll(hm).Result()
 
 	return allEndpoints, err
 }
 
-func MatchEndpoint(db *redis.Client, r *http.Request) (*DummyEndpoint, error) {
+func MatchEndpoint(db *db.DB, r *http.Request) (*DummyEndpoint, error) {
 	hm := buildKey([]string{PATTERNS_HMAP})
 
 	requestPattern := strings.Join([]string{r.URL.Path, r.Method}, ":")

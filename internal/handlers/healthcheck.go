@@ -4,10 +4,10 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/go-redis/redis/v7"
+	"github.com/chamilto/dummy/internal/db"
 )
 
-func HealthCheck(db *redis.Client, w http.ResponseWriter, r *http.Request) {
+func HealthCheck(db *db.DB, w http.ResponseWriter, r *http.Request) {
 	_, err := db.Ping().Result()
 
 	ok := true

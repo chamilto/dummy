@@ -7,13 +7,13 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/chamilto/dummy/internal/db"
 	"github.com/chamilto/dummy/internal/dummyendpoint"
 	"github.com/chamilto/dummy/internal/errors"
-	"github.com/go-redis/redis/v7"
 	"github.com/gorilla/mux"
 )
 
-func CreateDummyEndpoint(db *redis.Client, w http.ResponseWriter, r *http.Request) {
+func CreateDummyEndpoint(db *db.DB, w http.ResponseWriter, r *http.Request) {
 	b, err := ioutil.ReadAll(r.Body)
 	defer r.Body.Close()
 
@@ -57,7 +57,7 @@ func CreateDummyEndpoint(db *redis.Client, w http.ResponseWriter, r *http.Reques
 
 }
 
-func GetAllDummyEndpoints(db *redis.Client, w http.ResponseWriter, r *http.Request) {
+func GetAllDummyEndpoints(db *db.DB, w http.ResponseWriter, r *http.Request) {
 	endpoints, err := dummyendpoint.GetAllDummyEndpoints(db)
 
 	if err != nil {
@@ -76,7 +76,7 @@ func GetAllDummyEndpoints(db *redis.Client, w http.ResponseWriter, r *http.Reque
 	json.NewEncoder(w).Encode(ret)
 }
 
-func GetDetailDummyEndpoint(db *redis.Client, w http.ResponseWriter, r *http.Request) {
+func GetDetailDummyEndpoint(db *db.DB, w http.ResponseWriter, r *http.Request) {
 	name := mux.Vars(r)["name"]
 	de, err := dummyendpoint.LoadFromName(db, name)
 
@@ -97,7 +97,7 @@ func GetDetailDummyEndpoint(db *redis.Client, w http.ResponseWriter, r *http.Req
 	json.NewEncoder(w).Encode(de)
 }
 
-func UpdateDummyEndpoint(db *redis.Client, w http.ResponseWriter, r *http.Request) {
+func UpdateDummyEndpoint(db *db.DB, w http.ResponseWriter, r *http.Request) {
 	b, err := ioutil.ReadAll(r.Body)
 	defer r.Body.Close()
 

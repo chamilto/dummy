@@ -4,16 +4,15 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/go-redis/redis/v7"
 	"github.com/gorilla/mux"
-	"github.com/sirupsen/logrus"
 
+	"github.com/chamilto/dummy/internal/db"
 	"github.com/chamilto/dummy/internal/handlers"
 )
 
 type App struct {
 	Server *http.Server
-	DB     *redis.Client
+	DB     *db.DB
 	Router *mux.Router
 }
 
@@ -42,25 +41,9 @@ func (a *App) registerHandlers() {
 
 }
 
-func getRedisClient() *redis.Client {
-	redisClient := redis.NewClient(&redis.Options{
-		Addr:     "localhost:6379",
-		Password: "", // no password set
-		DB:       0,  // use default DB
-	})
-
-	_, err := redisClient.Ping().Result()
-
-	if err != nil {
-		logrus.Fatal("unable to connect to redis.")
-	}
-
-	return redisClient
-}
-
 // todo: take config struct param
 func (a *App) Initialize() {
-	a.DB = getRedisClient()
+	a.DB = db.NewDB()
 	a.Router = mux.NewRouter()
 	a.registerHandlers()
 	a.Server = &http.Server{
@@ -72,7 +55,7 @@ func (a *App) Initialize() {
 
 }
 
-type RequestHandlerFunction func(db *redis.Client, w http.ResponseWriter, r *http.Request)
+type RequestHandlerFunction func(db *db.DB, w http.ResponseWriter, r *http.Request)
 
 func (a *App) handleRequest(handler RequestHandlerFunction) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
