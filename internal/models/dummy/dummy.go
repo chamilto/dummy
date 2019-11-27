@@ -14,10 +14,19 @@ import (
 )
 
 const (
-	REDIS_KEY_PREFIX = "dummy"
-	PATTERNS_HMAP    = "patterns"
-	NAME_HMAP        = "names"
+	PATTERNS_HMAP = "patterns"
+	NAME_HMAP     = "names"
 )
+
+type DummyEndpoint struct {
+	Name        string            `json:"name"`
+	PathPattern string            `json:"pathPattern"`
+	HttpMethod  string            `json:"httpMethod"`
+	Body        string            `json:"body"`
+	StatusCode  float64           `json:"statusCode"`
+	Headers     map[string]string `json:"headers"`
+	Delay       float64           `json:"delay"`
+}
 
 const dummyEndpointSchema = `
 {
@@ -40,49 +49,11 @@ const dummyEndpointSchema = `
 
 var DummyEndpointSchemaLoader = gojsonschema.NewStringLoader(dummyEndpointSchema)
 
-func Validate(data []byte, schema gojsonschema.JSONLoader) (bool, []string) {
-	valid := true
-	dataDoc := gojsonschema.NewStringLoader(string(data))
-	result, err := gojsonschema.Validate(schema, dataDoc)
-
-	if err != nil {
-		return false, nil
-	}
-
-	errs := []string{}
-
-	if !result.Valid() {
-		valid = false
-		fmt.Println(result.Errors())
-		for _, desc := range result.Errors() {
-			errs = append(errs, fmt.Sprintf("%s", desc))
-		}
-	}
-
-	return valid, errs
-}
-
-func buildKey(parts []string) string {
-	// prepend
-	parts = append([]string{REDIS_KEY_PREFIX}, parts...)
-	return strings.Join(parts, ":")
-}
-
-type DummyEndpoint struct {
-	Name        string            `json:"name"`
-	PathPattern string            `json:"pathPattern"`
-	HttpMethod  string            `json:"httpMethod"`
-	Body        string            `json:"body"`
-	StatusCode  float64           `json:"statusCode"`
-	Headers     map[string]string `json:"headers"`
-	Delay       float64           `json:"delay"`
-}
-
 func (de *DummyEndpoint) Save(db *db.DB) error {
 	// Store name of route keyed by path pattern + method
 	fmt.Println(de)
 	fieldPattern := strings.Join([]string{de.PathPattern, de.HttpMethod}, ":")
-	err := db.HSet(buildKey([]string{PATTERNS_HMAP}), fieldPattern, de.Name).Err()
+	err := db.HSet(db.BuildKey([]string{PATTERNS_HMAP}), fieldPattern, de.Name).Err()
 
 	if err != nil {
 		return err
@@ -90,20 +61,20 @@ func (de *DummyEndpoint) Save(db *db.DB) error {
 
 	// Store dummy endpoint object by name
 	marshalled, _ := json.Marshal(de)
-	err2 := db.HSet(buildKey([]string{NAME_HMAP}), de.Name, marshalled).Err()
+	err2 := db.HSet(db.BuildKey([]string{NAME_HMAP}), de.Name, marshalled).Err()
 
 	return err2
 }
 
 func (de *DummyEndpoint) PathPatternExists(db *db.DB) bool {
-	hm := buildKey([]string{PATTERNS_HMAP})
+	hm := db.BuildKey([]string{PATTERNS_HMAP})
 	exists, _ := db.HExists(hm, strings.Join([]string{de.PathPattern, de.HttpMethod}, ":")).Result()
 
 	return exists
 }
 
 func (de *DummyEndpoint) NameExists(db *db.DB) bool {
-	hm := buildKey([]string{NAME_HMAP})
+	hm := db.BuildKey([]string{NAME_HMAP})
 	exists, _ := db.HExists(hm, de.Name).Result()
 
 	return exists
@@ -143,7 +114,7 @@ func (de *DummyEndpoint) setResponseHeaders(w http.ResponseWriter) {
 }
 
 func LoadFromName(db *db.DB, name string) (*DummyEndpoint, error) {
-	hm := buildKey([]string{NAME_HMAP})
+	hm := db.BuildKey([]string{NAME_HMAP})
 	v, err := db.HGet(hm, name).Result()
 
 	if v == "" {
@@ -157,14 +128,14 @@ func LoadFromName(db *db.DB, name string) (*DummyEndpoint, error) {
 }
 
 func GetAllDummyEndpoints(db *db.DB) (map[string]string, error) {
-	hm := buildKey([]string{NAME_HMAP})
+	hm := db.BuildKey([]string{NAME_HMAP})
 	allEndpoints, err := db.HGetAll(hm).Result()
 
 	return allEndpoints, err
 }
 
 func MatchEndpoint(db *db.DB, r *http.Request) (*DummyEndpoint, error) {
-	hm := buildKey([]string{PATTERNS_HMAP})
+	hm := db.BuildKey([]string{PATTERNS_HMAP})
 
 	requestPattern := strings.Join([]string{r.URL.Path, r.Method}, ":")
 	allPatterns, err := db.HGetAll(hm).Result()

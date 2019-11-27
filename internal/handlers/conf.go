@@ -7,10 +7,12 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/gorilla/mux"
+
 	"github.com/chamilto/dummy/internal/db"
 	"github.com/chamilto/dummy/internal/errors"
 	"github.com/chamilto/dummy/internal/models/dummy"
-	"github.com/gorilla/mux"
+	"github.com/chamilto/dummy/internal/utils"
 )
 
 func CreateDummyEndpoint(db *db.DB, w http.ResponseWriter, r *http.Request) {
@@ -22,7 +24,7 @@ func CreateDummyEndpoint(db *db.DB, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	valid, validationErrs := dummy.Validate(b, dummy.DummyEndpointSchemaLoader)
+	valid, validationErrs := utils.ValidateJson(b, dummy.DummyEndpointSchemaLoader)
 
 	if !valid {
 		// return validation errors to user
@@ -106,7 +108,7 @@ func UpdateDummyEndpoint(db *db.DB, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	valid, validationErrs := dummy.Validate(b, dummy.DummyEndpointSchemaLoader)
+	valid, validationErrs := utils.ValidateJson(b, dummy.DummyEndpointSchemaLoader)
 
 	if !valid {
 		// return validation errors to user
