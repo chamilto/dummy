@@ -8,8 +8,8 @@ import (
 	"strings"
 
 	"github.com/chamilto/dummy/internal/db"
-	"github.com/chamilto/dummy/internal/dummyendpoint"
 	"github.com/chamilto/dummy/internal/errors"
+	"github.com/chamilto/dummy/internal/models/dummy"
 	"github.com/gorilla/mux"
 )
 
@@ -22,7 +22,7 @@ func CreateDummyEndpoint(db *db.DB, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	valid, validationErrs := dummyendpoint.Validate(b, dummyendpoint.DummyEndpointSchemaLoader)
+	valid, validationErrs := dummy.Validate(b, dummy.DummyEndpointSchemaLoader)
 
 	if !valid {
 		// return validation errors to user
@@ -31,7 +31,7 @@ func CreateDummyEndpoint(db *db.DB, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	newEndpoint := dummyendpoint.DummyEndpoint{}
+	newEndpoint := dummy.DummyEndpoint{}
 
 	err = json.Unmarshal(b, &newEndpoint)
 
@@ -58,17 +58,17 @@ func CreateDummyEndpoint(db *db.DB, w http.ResponseWriter, r *http.Request) {
 }
 
 func GetAllDummyEndpoints(db *db.DB, w http.ResponseWriter, r *http.Request) {
-	endpoints, err := dummyendpoint.GetAllDummyEndpoints(db)
+	endpoints, err := dummy.GetAllDummyEndpoints(db)
 
 	if err != nil {
 		errors.WriteServerError(w, "unable to fetch dummy endpoints from db", err)
 		return
 	}
 
-	ret := []dummyendpoint.DummyEndpoint{}
+	ret := []dummy.DummyEndpoint{}
 
 	for _, v := range endpoints {
-		e := dummyendpoint.DummyEndpoint{}
+		e := dummy.DummyEndpoint{}
 		json.Unmarshal([]byte(v), &e)
 		ret = append(ret, e)
 	}
@@ -78,7 +78,7 @@ func GetAllDummyEndpoints(db *db.DB, w http.ResponseWriter, r *http.Request) {
 
 func GetDetailDummyEndpoint(db *db.DB, w http.ResponseWriter, r *http.Request) {
 	name := mux.Vars(r)["name"]
-	de, err := dummyendpoint.LoadFromName(db, name)
+	de, err := dummy.LoadFromName(db, name)
 
 	if err != nil {
 		errors.WriteServerError(w, "unable to fetch dummy endpoint from db", err)
@@ -106,7 +106,7 @@ func UpdateDummyEndpoint(db *db.DB, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	valid, validationErrs := dummyendpoint.Validate(b, dummyendpoint.DummyEndpointSchemaLoader)
+	valid, validationErrs := dummy.Validate(b, dummy.DummyEndpointSchemaLoader)
 
 	if !valid {
 		// return validation errors to user
@@ -115,10 +115,10 @@ func UpdateDummyEndpoint(db *db.DB, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	updatedEndpoint := dummyendpoint.DummyEndpoint{}
+	updatedEndpoint := dummy.DummyEndpoint{}
 
-	var existingEndpoint *dummyendpoint.DummyEndpoint
-	existingEndpoint, err = dummyendpoint.LoadFromName(db, mux.Vars(r)["name"])
+	var existingEndpoint *dummy.DummyEndpoint
+	existingEndpoint, err = dummy.LoadFromName(db, mux.Vars(r)["name"])
 
 	if err != nil {
 

@@ -1,4 +1,4 @@
-package dummyendpoint
+package dummy
 
 import (
 	"encoding/json"

@@ -4,14 +4,14 @@ import (
 	"net/http"
 
 	"github.com/chamilto/dummy/internal/db"
-	"github.com/chamilto/dummy/internal/dummyendpoint"
 	"github.com/chamilto/dummy/internal/errors"
+	"github.com/chamilto/dummy/internal/models/dummy"
 )
 
 // Match the incoming request's url path + Method to a dummy endpoint
 // Use the dummy endpoint struct data to build our custom response
 func Dummy(db *db.DB, w http.ResponseWriter, r *http.Request) {
-	de, err := dummyendpoint.MatchEndpoint(db, r)
+	de, err := dummy.MatchEndpoint(db, r)
 
 	if err != nil {
 		errors.WriteServerError(w, "unable to load dummy endpoint", err)
