@@ -7,6 +7,10 @@ import (
 	"github.com/chamilto/dummy/internal/db"
 )
 
+type HealthCheckResponse struct {
+	Ok bool `json:"ok"`
+}
+
 func HealthCheck(db *db.DB, w http.ResponseWriter, r *http.Request) {
 	_, err := db.Ping().Result()
 
@@ -15,6 +19,5 @@ func HealthCheck(db *db.DB, w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		ok = false
 	}
-
-	json.NewEncoder(w).Encode(map[string]bool{"ok": ok})
+	json.NewEncoder(w).Encode(HealthCheckResponse{Ok: ok})
 }
