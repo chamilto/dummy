@@ -12,11 +12,10 @@ import (
 	"github.com/chamilto/dummy/internal/testutil"
 )
 
-type HealthCheckResp map[string]bool
-
 func TestHealthCheckHandler(t *testing.T) {
 	a := app.App{}
-	a.Initialize()
+	c := testutil.NewTestConf(t)
+	a.Initialize(c)
 	RegisterHandlers(a.Router, a.DB)
 	rr := httptest.NewRecorder()
 	req := testutil.NewRequest(t, "GET", "/dummy-config/health")

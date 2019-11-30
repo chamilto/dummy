@@ -6,6 +6,7 @@ import (
 
 	"github.com/gorilla/mux"
 
+	"github.com/chamilto/dummy/internal/config"
 	"github.com/chamilto/dummy/internal/db"
 )
 
@@ -13,11 +14,12 @@ type App struct {
 	Server *http.Server
 	DB     *db.DB
 	Router *mux.Router
+	Config config.Config
 }
 
-// todo: take config struct param
-func (a *App) Initialize() {
-	a.DB = db.NewDB()
+func (a *App) Initialize(c config.Config) {
+	a.Config = c
+	a.DB = db.NewDB(c)
 	a.Router = mux.NewRouter()
 	a.Server = &http.Server{
 		Handler:      a.Router,

@@ -3,6 +3,7 @@ package db
 import (
 	"strings"
 
+	"github.com/chamilto/dummy/internal/config"
 	"github.com/go-redis/redis/v7"
 	"github.com/sirupsen/logrus"
 )
@@ -13,11 +14,11 @@ type DB struct {
 	*redis.Client
 }
 
-func NewDB() *DB {
+func NewDB(c config.Config) *DB {
 	db := redis.NewClient(&redis.Options{
-		Addr:     "localhost:6379",
-		Password: "", // no password set
-		DB:       0,  // use default DB
+		Addr:     c.DB.Host + ":" + c.DB.Port,
+		Password: c.DB.Password,
+		DB:       c.DB.DB,
 	})
 
 	_, err := db.Ping().Result()

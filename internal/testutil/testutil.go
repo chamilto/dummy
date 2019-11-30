@@ -4,8 +4,13 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"reflect"
+	"strconv"
 	"testing"
+
+	"github.com/chamilto/dummy/internal/config"
+	"github.com/chamilto/dummy/internal/db"
 )
 
 func NewRequest(t *testing.T, method, path string) *http.Request {
@@ -39,4 +44,15 @@ func AssertEquals(t *testing.T, rr *httptest.ResponseRecorder, got, expected int
 		t.Errorf("handler returned unexpected body: got %v want %v",
 			rr.Body.String(), expected)
 	}
+}
+
+func NewTestConf(t *testing.T) config.Config {
+	c := config.Config{DB: config.DBConf{}}
+	c.DB.Host = os.Getenv("TEST_REDIS_HOST")
+	c.DB.Port = os.Getenv("TEST_REDIS_PORT")
+	c.DB.Password = os.Getenv("TEST_REDIS_PASSWORD")
+	db, _ := strconv.Atoi(os.Getenv("TEST_REDIS_DB"))
+	c.DB.DB = db
+
+	return c
 }
