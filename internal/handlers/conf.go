@@ -9,13 +9,12 @@ import (
 
 	"github.com/gorilla/mux"
 
-	"github.com/chamilto/dummy/internal/db"
 	"github.com/chamilto/dummy/internal/errors"
 	"github.com/chamilto/dummy/internal/models/dummy"
 	"github.com/chamilto/dummy/internal/utils"
 )
 
-func CreateDummyEndpoint(db *db.DB, w http.ResponseWriter, r *http.Request) {
+func (c *HandlerContext) CreateDummyEndpoint(w http.ResponseWriter, r *http.Request) {
 	b, err := ioutil.ReadAll(r.Body)
 	defer r.Body.Close()
 
@@ -43,14 +42,14 @@ func CreateDummyEndpoint(db *db.DB, w http.ResponseWriter, r *http.Request) {
 	}
 
 	// check name + pattern uniqueness before saving
-	unq, unqErrMsg := newEndpoint.IsUnique(db)
+	unq, unqErrMsg := newEndpoint.IsUnique(c.DB)
 
 	if !unq {
 		errors.WriteError(w, "ConflictError", unqErrMsg, http.StatusConflict)
 		return
 	}
 
-	saveErr := newEndpoint.Save(db)
+	saveErr := newEndpoint.Save(c.DB)
 
 	if saveErr != nil {
 		errors.WriteServerError(w, "error saving new endpoint to DB", err)
@@ -59,8 +58,8 @@ func CreateDummyEndpoint(db *db.DB, w http.ResponseWriter, r *http.Request) {
 
 }
 
-func GetAllDummyEndpoints(db *db.DB, w http.ResponseWriter, r *http.Request) {
-	endpoints, err := dummy.GetAllDummyEndpoints(db)
+func (c *HandlerContext) GetAllDummyEndpoints(w http.ResponseWriter, r *http.Request) {
+	endpoints, err := dummy.GetAllDummyEndpoints(c.DB)
 
 	if err != nil {
 		errors.WriteServerError(w, "unable to fetch dummy endpoints from db", err)
@@ -78,9 +77,9 @@ func GetAllDummyEndpoints(db *db.DB, w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(ret)
 }
 
-func GetDetailDummyEndpoint(db *db.DB, w http.ResponseWriter, r *http.Request) {
+func (c *HandlerContext) GetDetailDummyEndpoint(w http.ResponseWriter, r *http.Request) {
 	name := mux.Vars(r)["name"]
-	de, err := dummy.LoadFromName(db, name)
+	de, err := dummy.LoadFromName(c.DB, name)
 
 	if err != nil {
 		errors.WriteServerError(w, "unable to fetch dummy endpoint from db", err)
@@ -99,7 +98,7 @@ func GetDetailDummyEndpoint(db *db.DB, w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(de)
 }
 
-func UpdateDummyEndpoint(db *db.DB, w http.ResponseWriter, r *http.Request) {
+func (c *HandlerContext) UpdateDummyEndpoint(w http.ResponseWriter, r *http.Request) {
 	b, err := ioutil.ReadAll(r.Body)
 	defer r.Body.Close()
 
@@ -111,7 +110,6 @@ func UpdateDummyEndpoint(db *db.DB, w http.ResponseWriter, r *http.Request) {
 	valid, validationErrs := utils.ValidateJson(b, dummy.DummyEndpointSchemaLoader)
 
 	if !valid {
-		// return validation errors to user
 		msg := strings.Join(validationErrs, ",")
 		errors.WriteError(w, "ValidationError", msg, http.StatusBadRequest)
 		return
@@ -120,7 +118,7 @@ func UpdateDummyEndpoint(db *db.DB, w http.ResponseWriter, r *http.Request) {
 	updatedEndpoint := dummy.DummyEndpoint{}
 
 	var existingEndpoint *dummy.DummyEndpoint
-	existingEndpoint, err = dummy.LoadFromName(db, mux.Vars(r)["name"])
+	existingEndpoint, err = dummy.LoadFromName(c.DB, mux.Vars(r)["name"])
 
 	if err != nil {
 
@@ -136,7 +134,7 @@ func UpdateDummyEndpoint(db *db.DB, w http.ResponseWriter, r *http.Request) {
 	}
 
 	// make sure the name and pattern exist
-	unq, _ := updatedEndpoint.IsUnique(db)
+	unq, _ := updatedEndpoint.IsUnique(c.DB)
 
 	if unq {
 		errors.WriteError(
@@ -167,7 +165,7 @@ func UpdateDummyEndpoint(db *db.DB, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = updatedEndpoint.Save(db)
+	err = updatedEndpoint.Save(c.DB)
 
 	if err != nil {
 		errors.WriteServerError(w, "unable to save endpoint", err)

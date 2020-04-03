@@ -5,45 +5,63 @@ import (
 
 	"github.com/gorilla/mux"
 
+	"github.com/chamilto/dummy/internal/config"
 	"github.com/chamilto/dummy/internal/db"
 )
 
-type RequestHandlerFunction func(db *db.DB, w http.ResponseWriter, r *http.Request)
+type HandlerContext struct {
+	DB     *db.DB
+	Router *mux.Router
+	Config *config.Config
+}
 
-func HandleRequest(handler RequestHandlerFunction, db *db.DB) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		handler(db, w, r)
+func NewHandlerContext(c *config.Config, db *db.DB) *HandlerContext {
+	return &HandlerContext{
+		DB:     db,
+		Config: c,
 	}
 }
 
-func HandleConfigRequest(handler RequestHandlerFunction, db *db.DB) http.HandlerFunc {
+type RequestHandlerFunction func(w http.ResponseWriter, r *http.Request)
+
+func HandleRequest(handler RequestHandlerFunction) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		handler(w, r)
+	}
+}
+
+func HandleConfigRequest(handler RequestHandlerFunction) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		handler(db, w, r)
+		handler(w, r)
 	}
 }
 
-func RegisterHandlers(r *mux.Router, db *db.DB) {
+func NewRouter(c *HandlerContext) *mux.Router {
+	r := mux.NewRouter()
+	c.Router = r
+
 	// dummy config api
-	r.HandleFunc("/dummy-config/health", HandleConfigRequest(HealthCheck, db))
+	r.HandleFunc("/dummy-config/healthcheck", HandleConfigRequest(c.HealthCheck))
 	r.HandleFunc(
 		"/dummy-config/endpoints",
-		HandleConfigRequest(CreateDummyEndpoint, db),
+		HandleConfigRequest(c.CreateDummyEndpoint),
 	).Methods("POST")
 	r.HandleFunc(
 		"/dummy-config/endpoints",
-		HandleConfigRequest(GetAllDummyEndpoints, db),
+		HandleConfigRequest(c.GetAllDummyEndpoints),
 	).Methods("GET")
 	r.HandleFunc(
 		"/dummy-config/endpoints/{name}",
-		HandleConfigRequest(GetDetailDummyEndpoint, db),
+		HandleConfigRequest(c.GetDetailDummyEndpoint),
 	).Methods("GET")
 	r.HandleFunc(
 		"/dummy-config/endpoints/{name}",
-		HandleConfigRequest(UpdateDummyEndpoint, db),
+		HandleConfigRequest(c.UpdateDummyEndpoint),
 	).Methods("PUT")
 
 	// Hijack the 404 handler to register our Dummy Endpoint matcher
-	r.NotFoundHandler = HandleRequest(Dummy, db)
+	r.NotFoundHandler = HandleRequest(c.Dummy)
 
+	return r
 }
