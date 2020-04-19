@@ -2,6 +2,7 @@ package dummy
 
 import (
 	"encoding/json"
+	//"fmt"
 	"net/http"
 	"regexp"
 	"strings"
@@ -33,25 +34,66 @@ const dummyEndpointSchema = `
     "title": "DummyEndpoint",
     "type": "object",
     "properties": {
-        "pathPattern": {"type": "string"},
-        "statusCode": {"type": "integer"},
-        "body": {"type": "string"},
-        "name": {"type": "string"},
-        "httpMethod": {"type": "string", "enum": ["GET", "POST", "PUT", "PATCH", "DELETE"]},
-        "headers": {"type": "object"},
-        "delay": {"type": "integer", "description": "Delay in milliseconds"}
+        "pathPattern": {
+            "type": "string",
+            "minLength": 1
+        },
+        "statusCode": {
+            "type": "integer",
+            "minimum": 0
+        },
+        "body": {
+            "type": "string"
+        },
+        "name": {
+            "type": "string"
+        },
+        "httpMethod": {
+            "type": "string",
+            "enum": [
+                "GET",
+                "POST",
+                "PUT",
+                "PATCH",
+                "DELETE"
+            ]
+        },
+        "headers": {
+            "type": "object"
+        },
+        "delay": {
+            "type": "integer",
+            "description": "Delay in milliseconds",
+            "minimum": 0
+        }
     },
-    "required": ["pathPattern", "body", "statusCode", "name", "httpMethod"],
+    "required": [
+        "pathPattern",
+        "body",
+        "statusCode",
+        "name",
+        "httpMethod"
+    ],
     "additionalProperties": false
 }
 `
 
 var DummyEndpointSchemaLoader = gojsonschema.NewStringLoader(dummyEndpointSchema)
 
-func (de *DummyEndpoint) Save(db *db.DB) error {
+func (de *DummyEndpoint) ToJSON() ([]byte, error) {
+	b, err := json.Marshal(de)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return b, nil
+}
+
+func (de *DummyEndpoint) Save(db db.RedisClient) error {
 	// Store name of route keyed by path pattern + method
 	fieldPattern := strings.Join([]string{de.PathPattern, de.HttpMethod}, ":")
-	err := db.HSet(db.BuildKey(PATTERNS_HMAP), fieldPattern, de.Name).Err()
+	_, err := db.HSet(db.BuildKey(PATTERNS_HMAP), fieldPattern, de.Name).Result()
 
 	if err != nil {
 		return err
@@ -59,27 +101,26 @@ func (de *DummyEndpoint) Save(db *db.DB) error {
 
 	// Store dummy endpoint object by name
 	marshalled, _ := json.Marshal(de)
-	err2 := db.HSet(db.BuildKey(NAME_HMAP), de.Name, marshalled).Err()
+	_, err = db.HSet(db.BuildKey(NAME_HMAP), de.Name, marshalled).Result()
 
-	return err2
+	return err
 }
 
-func (de *DummyEndpoint) PathPatternExists(db *db.DB) bool {
+func (de *DummyEndpoint) PathPatternExists(db db.RedisClient) bool {
 	hm := db.BuildKey(PATTERNS_HMAP)
 	exists, _ := db.HExists(hm, strings.Join([]string{de.PathPattern, de.HttpMethod}, ":")).Result()
 
 	return exists
 }
 
-func (de *DummyEndpoint) NameExists(db *db.DB) bool {
+func (de *DummyEndpoint) NameExists(db db.RedisClient) bool {
 	hm := db.BuildKey(NAME_HMAP)
 	exists, _ := db.HExists(hm, de.Name).Result()
 
 	return exists
-
 }
 
-func (de *DummyEndpoint) IsUnique(db *db.DB) (bool, string) {
+func (de *DummyEndpoint) IsUnique(db db.RedisClient) (bool, string) {
 	if de.PathPatternExists(db) {
 		return false, "pathPattern + httpMethod is not unique."
 
@@ -90,7 +131,19 @@ func (de *DummyEndpoint) IsUnique(db *db.DB) (bool, string) {
 	}
 
 	return true, ""
+}
 
+func (de *DummyEndpoint) Delete(db db.RedisClient) error {
+	// Store name of route keyed by path pattern + method
+	fieldPattern := strings.Join([]string{de.PathPattern, de.HttpMethod}, ":")
+	err := db.HDel(db.BuildKey(PATTERNS_HMAP), fieldPattern).Err()
+
+	if err != nil {
+		return err
+	}
+	err = db.HDel(db.BuildKey(NAME_HMAP), de.Name).Err()
+
+	return err
 }
 
 // Write the response headers, status code, and body from the DummyEndpoint
@@ -111,7 +164,7 @@ func (de *DummyEndpoint) setResponseHeaders(w http.ResponseWriter) {
 	}
 }
 
-func LoadFromName(db *db.DB, name string) (*DummyEndpoint, error) {
+func LoadFromName(db db.RedisClient, name string) (*DummyEndpoint, error) {
 	hm := db.BuildKey(NAME_HMAP)
 	v, err := db.HGet(hm, name).Result()
 
@@ -125,14 +178,14 @@ func LoadFromName(db *db.DB, name string) (*DummyEndpoint, error) {
 	return de, err
 }
 
-func GetAllDummyEndpoints(db *db.DB) (map[string]string, error) {
+func GetAllDummyEndpoints(db db.RedisClient) (map[string]string, error) {
 	hm := db.BuildKey(NAME_HMAP)
 	allEndpoints, err := db.HGetAll(hm).Result()
 
 	return allEndpoints, err
 }
 
-func MatchEndpoint(db *db.DB, r *http.Request) (*DummyEndpoint, error) {
+func MatchEndpoint(db db.RedisClient, r *http.Request) (*DummyEndpoint, error) {
 	hm := db.BuildKey(PATTERNS_HMAP)
 
 	requestPattern := strings.Join([]string{r.URL.Path, r.Method}, ":")

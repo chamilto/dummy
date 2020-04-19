@@ -1,0 +1,8 @@
+{
+    "pathPattern": "/users/.*",
+    "body": "{\"username\": \"someuser123\"}",
+    "name": "users get",
+    "httpMethod": "GET",
+    "headers": {"my-special-header": "and it's value"},
+    "delay": 250
+}

@@ -20,7 +20,7 @@ func NewDBConf() *DBConf {
 	db, err := strconv.Atoi(os.Getenv("REDIS_DB"))
 
 	if err != nil {
-		logrus.Fatal("REDIS_DB must be an integer")
+		logrus.Fatalf("REDIS_DB must be an integer: %v", err)
 	}
 
 	return &DBConf{

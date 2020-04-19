@@ -21,8 +21,8 @@ func init() {
 func main() {
 	c := config.NewConfig()
 	db := db.NewDB(c)
-	ctx := handlers.NewHandlerContext(c, db)
-	r := handlers.NewRouter(ctx)
+	ctlr := handlers.NewHandlerController(c, db)
+	r := handlers.NewRouter(ctlr)
 
 	server := &http.Server{
 		Handler:      r,
@@ -47,7 +47,7 @@ func main() {
 
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer func() {
-		ctx.DB.Close()
+		ctlr.DB.Close()
 		cancel()
 	}()
 

@@ -3,6 +3,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"strings"
@@ -14,91 +15,11 @@ import (
 	"github.com/chamilto/dummy/internal/utils"
 )
 
-func (c *HandlerContext) CreateDummyEndpoint(w http.ResponseWriter, r *http.Request) {
-	b, err := ioutil.ReadAll(r.Body)
-	defer r.Body.Close()
-
-	if err != nil {
-		errors.WriteServerError(w, "unable to parse request body.", err)
-		return
-	}
-
-	valid, validationErrs := utils.ValidateJson(b, dummy.DummyEndpointSchemaLoader)
-
-	if !valid {
-		// return validation errors to user
-		msg := strings.Join(validationErrs, ",")
-		errors.WriteError(w, "ValidationError", msg, http.StatusBadRequest)
-		return
-	}
-
-	newEndpoint := dummy.DummyEndpoint{}
-
-	err = json.Unmarshal(b, &newEndpoint)
-
-	if err != nil {
-		errors.WriteServerError(w, "unable to unmarshal request body to json", err)
-		return
-	}
-
-	// check name + pattern uniqueness before saving
-	unq, unqErrMsg := newEndpoint.IsUnique(c.DB)
-
-	if !unq {
-		errors.WriteError(w, "ConflictError", unqErrMsg, http.StatusConflict)
-		return
-	}
-
-	saveErr := newEndpoint.Save(c.DB)
-
-	if saveErr != nil {
-		errors.WriteServerError(w, "error saving new endpoint to DB", err)
-		return
-	}
-
+type collectionResponse struct {
+	Items []dummy.DummyEndpoint `json:"items"`
 }
 
-func (c *HandlerContext) GetAllDummyEndpoints(w http.ResponseWriter, r *http.Request) {
-	endpoints, err := dummy.GetAllDummyEndpoints(c.DB)
-
-	if err != nil {
-		errors.WriteServerError(w, "unable to fetch dummy endpoints from db", err)
-		return
-	}
-
-	ret := []dummy.DummyEndpoint{}
-
-	for _, v := range endpoints {
-		e := dummy.DummyEndpoint{}
-		json.Unmarshal([]byte(v), &e)
-		ret = append(ret, e)
-	}
-
-	json.NewEncoder(w).Encode(ret)
-}
-
-func (c *HandlerContext) GetDetailDummyEndpoint(w http.ResponseWriter, r *http.Request) {
-	name := mux.Vars(r)["name"]
-	de, err := dummy.LoadFromName(c.DB, name)
-
-	if err != nil {
-		errors.WriteServerError(w, "unable to fetch dummy endpoint from db", err)
-		return
-
-	}
-
-	if de == nil {
-		errors.WriteError(
-			w,
-			"NotFoundError", "Dummy Endpoint not found",
-			http.StatusNotFound,
-		)
-		return
-	}
-	json.NewEncoder(w).Encode(de)
-}
-
-func (c *HandlerContext) UpdateDummyEndpoint(w http.ResponseWriter, r *http.Request) {
+func (c *HandlerController) CreateDummyEndpoint(w http.ResponseWriter, r *http.Request) {
 	b, err := ioutil.ReadAll(r.Body)
 	defer r.Body.Close()
 
@@ -111,17 +32,118 @@ func (c *HandlerContext) UpdateDummyEndpoint(w http.ResponseWriter, r *http.Requ
 
 	if !valid {
 		msg := strings.Join(validationErrs, ",")
-		errors.WriteError(w, "ValidationError", msg, http.StatusBadRequest)
+		errors.WriteError(w, errors.ValidationError, msg, http.StatusBadRequest)
+		return
+	}
+
+	var newEndpoint dummy.DummyEndpoint
+
+	err = json.Unmarshal(b, &newEndpoint)
+
+	if err != nil {
+		errors.WriteServerError(w, "unable to unmarshal request body to json", err)
+		return
+	}
+
+	// check name + pattern uniqueness before saving
+	unq, unqErrMsg := newEndpoint.IsUnique(c.DB)
+
+	if !unq {
+		errors.WriteError(w, errors.ConflictError, unqErrMsg, http.StatusConflict)
+		return
+	}
+
+	err = newEndpoint.Save(c.DB)
+
+	fmt.Printf("%v", err)
+
+	if err != nil {
+		errors.WriteServerError(w, "error saving new endpoint to DB", err)
+		return
+	}
+
+	w.WriteHeader(http.StatusCreated)
+}
+
+func (c *HandlerController) GetAllDummyEndpoints(w http.ResponseWriter, r *http.Request) {
+	endpoints, err := dummy.GetAllDummyEndpoints(c.DB)
+
+	if err != nil {
+		errors.WriteServerError(w, "unable to fetch dummy endpoints from db", err)
+		return
+	}
+
+	items := []dummy.DummyEndpoint{}
+
+	for _, v := range endpoints {
+		de := dummy.DummyEndpoint{}
+		json.Unmarshal([]byte(v), &de)
+		items = append(items, de)
+	}
+
+	ret := collectionResponse{Items: items}
+
+	b, err := json.Marshal(&ret)
+
+	if err != nil {
+		errors.WriteServerError(w, "error encoding dummy endpoints", err)
+		return
+	}
+
+	w.Write(b)
+}
+
+func (c *HandlerController) GetDetailDummyEndpoint(w http.ResponseWriter, r *http.Request) {
+	name := mux.Vars(r)["name"]
+	de, err := dummy.LoadFromName(c.DB, name)
+
+	if err != nil {
+		errors.WriteServerError(w, "unable to fetch dummy endpoint from db", err)
+		return
+
+	}
+
+	if de == nil {
+		errors.WriteError(
+			w,
+			errors.NotFoundError, "Dummy Endpoint not found",
+			http.StatusNotFound,
+		)
+		return
+	}
+
+	b, err := de.ToJSON() // maybe dumb?
+
+	if err != nil {
+		errors.WriteServerError(w, "unable to encode dummy endpoint", err)
+		return
+	}
+
+	w.Write(b)
+}
+
+func (c *HandlerController) UpdateDummyEndpoint(w http.ResponseWriter, r *http.Request) {
+	b, err := ioutil.ReadAll(r.Body)
+	defer r.Body.Close()
+
+	if err != nil {
+		errors.WriteServerError(w, "unable to parse request body", err)
+		return
+	}
+
+	valid, validationErrs := utils.ValidateJson(b, dummy.DummyEndpointSchemaLoader)
+
+	if !valid {
+		msg := strings.Join(validationErrs, ",")
+		errors.WriteError(w, errors.ValidationError, msg, http.StatusBadRequest)
 		return
 	}
 
 	updatedEndpoint := dummy.DummyEndpoint{}
 
-	var existingEndpoint *dummy.DummyEndpoint
-	existingEndpoint, err = dummy.LoadFromName(c.DB, mux.Vars(r)["name"])
+	existingEndpoint, err := dummy.LoadFromName(c.DB, mux.Vars(r)["name"])
 
 	if err != nil {
-
 		errors.WriteServerError(w, "unable to load dummy endpoint", err)
 		return
 	}
@@ -139,7 +161,7 @@ func (c *HandlerContext) UpdateDummyEndpoint(w http.ResponseWriter, r *http.Requ
 	if unq {
 		errors.WriteError(
 			w,
-			"NotFoundError", "Dummy Endpoint not found",
+			errors.NotFoundError, "Dummy Endpoint not found",
 			http.StatusNotFound,
 		)
 		return
@@ -149,7 +171,7 @@ func (c *HandlerContext) UpdateDummyEndpoint(w http.ResponseWriter, r *http.Requ
 	if existingEndpoint.Name != updatedEndpoint.Name {
 		errors.WriteError(
 			w,
-			"BadRequestError", "Field name cannot be changed.",
+			errors.ValidationError, "Field name cannot be changed.",
 			http.StatusNotFound,
 		)
 		return
@@ -159,7 +181,7 @@ func (c *HandlerContext) UpdateDummyEndpoint(w http.ResponseWriter, r *http.Requ
 	if existingEndpoint.PathPattern != updatedEndpoint.PathPattern {
 		errors.WriteError(
 			w,
-			"BadRequestError", "Field pathPattern cannot be changed.",
+			errors.ValidationError, "Field pathPattern cannot be changed.",
 			http.StatusNotFound,
 		)
 		return

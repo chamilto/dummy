@@ -9,7 +9,7 @@ import (
 
 // Match the incoming request's url path + Method to a dummy endpoint
 // Use the dummy endpoint struct data to build our custom response
-func (c *HandlerContext) Dummy(w http.ResponseWriter, r *http.Request) {
+func (c *HandlerController) Dummy(w http.ResponseWriter, r *http.Request) {
 	de, err := dummy.MatchEndpoint(c.DB, r)
 
 	if err != nil {

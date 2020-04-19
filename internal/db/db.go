@@ -10,8 +10,13 @@ import (
 
 const REDIS_KEY_PREFIX = "dummy"
 
+type RedisClient interface {
+	redis.UniversalClient
+	BuildKey(key string) string
+}
+
 type DB struct {
-	*redis.Client
+	redis.UniversalClient
 }
 
 func NewDB(c *config.Config) *DB {
